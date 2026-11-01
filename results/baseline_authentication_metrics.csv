@@ -1,0 +1,2 @@
+n_genuine_attempts,n_impostor_attempts,eer,eer_percent,eer_threshold,eer_far,eer_frr,eer_accuracy_percent,eer_balanced_accuracy_percent,optimal_threshold,optimal_accuracy_percent,optimal_balanced_accuracy_percent,genuine_mean_distance,genuine_std_distance,impostor_mean_distance,impostor_std_distance
+400,1350,0.4455,44.55,0.2734,0.4459,0.445,55.43,55.45,0.1548,77.83,56.47,0.4126,0.3173,0.4209,0.2892

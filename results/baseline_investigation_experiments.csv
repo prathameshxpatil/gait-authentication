@@ -1,0 +1,17 @@
+exp_id,exp_name,feature_mode,stream_filter,window_duration_sec,dtw_radius,norm_mode,n_templates,val_threshold,val_eer_pct,val_bal_acc_pct,test_eer_intrinsic_pct,test_far_pct,test_frr_pct,test_balanced_acc_pct,test_accuracy_pct,test_n_genuine,test_n_impostor,gen_mean_distance,imp_mean_distance,distance_margin,runtime_sec
+EXP-01,"Baseline (Raw XYZ, 2s, R=30, N+M norm)",raw_xyz,all,2.0,30,sum_lengths,8,0.2746,44.44,55.56,44.61,44.89,44.67,55.22,55.17,300,900,0.4105,0.4207,0.0102,1.08
+EXP-02,Path-Length Normalization (Divide by K),raw_xyz,all,2.0,30,path_length,8,0.4756,45.11,54.89,45.83,46.33,45.67,54.0,53.83,300,900,0.7285,0.753,0.0245,0.91
+EXP-03A,Narrow Band Radius (R=15 / 0.15s),raw_xyz,all,2.0,15,sum_lengths,8,0.2767,45.0,55.0,45.56,44.89,46.0,54.56,54.83,300,900,0.413,0.4232,0.0102,0.46
+EXP-03B,Wide Band Radius (R=50 / 0.50s),raw_xyz,all,2.0,50,sum_lengths,8,0.2746,44.5,55.5,44.5,45.0,44.33,55.33,55.17,300,900,0.4098,0.4203,0.0105,1.39
+EXP-03C,Unconstrained DTW (Full Matrix / No Band),raw_xyz,all,2.0,-1,sum_lengths,8,0.2746,44.5,55.5,44.5,45.22,44.33,55.22,55.0,300,900,0.4095,0.42,0.0104,3.04
+EXP-04A,Stream Evaluation: G-Only (Outward walk),raw_xyz,G,2.0,30,sum_lengths,8,0.2713,42.78,57.22,44.56,45.0,44.33,55.33,55.17,300,900,0.4097,0.4174,0.0077,0.87
+EXP-04B,Stream Evaluation: R-Only (Return walk),raw_xyz,R,2.0,30,sum_lengths,8,0.3225,48.24,51.76,46.46,48.93,44.17,53.45,52.5,240,560,0.4631,0.4705,0.0074,0.62
+EXP-05A,Dynamic Acc (Gravity Removed / Zero-Mean),dynamic_xyz,all,2.0,30,sum_lengths,8,0.2324,45.39,54.61,44.94,45.22,44.67,55.06,54.92,300,900,0.2405,0.258,0.0175,0.91
+EXP-05B,Z-Score Normalized Acc (Standardized XYZ),znorm_xyz,all,2.0,30,sum_lengths,8,0.7932,43.0,57.0,43.61,42.78,44.33,56.44,56.83,300,900,0.7522,0.7931,0.0408,0.97
+EXP-05C,Acceleration Magnitude ||a|| (Rotation Invariant),magnitude,all,2.0,30,sum_lengths,8,0.0652,40.89,59.11,34.89,34.78,35.0,65.11,65.17,300,900,0.0655,0.0788,0.0133,0.78
+EXP-05D,Z-Score Normalized Magnitude,znorm_magnitude,all,2.0,30,sum_lengths,8,0.1485,41.89,58.11,37.11,36.33,37.67,63.0,63.33,300,900,0.1379,0.1581,0.0202,0.87
+EXP-06A,Window Length: 3.0 Seconds (300 samples),raw_xyz,all,3.0,30,sum_lengths,8,0.2729,45.22,54.78,44.83,44.44,45.33,55.11,55.33,300,900,0.4108,0.4204,0.0096,1.36
+EXP-06B,Window Length: 4.0 Seconds (400 samples),raw_xyz,all,4.0,30,sum_lengths,8,0.2716,45.44,54.56,44.33,43.44,45.0,55.78,56.17,300,900,0.4095,0.4197,0.0102,1.84
+EXP-07A,Enrolment Gallery Size: 4 Templates,raw_xyz,all,2.0,30,sum_lengths,4,0.2851,45.72,54.28,44.72,46.22,43.0,55.39,54.58,300,900,0.4218,0.4291,0.0073,0.47
+EXP-07B,Enrolment Gallery Size: 16 Templates,raw_xyz,all,2.0,30,sum_lengths,16,0.2711,45.94,54.06,45.06,45.89,43.67,55.22,54.67,300,900,0.4073,0.4167,0.0093,1.72
+EXP-08,Synergy: Z-Norm Mag + G-Stream (Rotation Invariant),znorm_magnitude,G,2.0,30,path_length,8,0.2058,42.94,57.06,41.39,35.56,46.0,59.22,61.83,300,900,0.2015,0.2189,0.0173,0.82

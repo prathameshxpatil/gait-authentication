@@ -1,0 +1,4 @@
+System,Threshold,Required Confirmations,Anchor Aggregation,FAR (%),FRR (%),EER Diagnostic (%),Balanced Accuracy (%),Ordinary Accuracy (%),Total Genuine Updates,Accepted Impostor Count,Poisoned Updates Count,Mean Template Drift,Max Template Drift,Genuine Attempts,Impostor Attempts,Poisoned Promotions Count,Total Genuine Promotions
+System A: Fixed Baseline DTW,0.0652,0.0,none,43.78,36.6,40.11,59.81,60.0,0.0,197,0.0,0.0,0.0,500,450,0,0
+System B: 3-Confirmation Adaptive,0.0652,3.0,top2_mean,44.67,36.6,40.33,59.37,59.58,9.0,201,2.0,0.0462,0.0641,500,450,2,9
+System C: Candidate-Buffer Dual-Gallery,0.0652,,,43.56,36.6,40.01,59.92,60.11,,196,,0.0103,0.0445,500,450,0,3

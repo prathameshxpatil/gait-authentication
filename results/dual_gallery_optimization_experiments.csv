@@ -1,0 +1,13 @@
+exp_id,config_label,feature,w_perm,n_cand,gamma_check,repl_strat,n_perm,test_far_pct,test_frr_pct,test_balanced_acc_pct,diagnostic_eer_pct,genuine_promotions,poisoned_promotions,mean_drift
+EXP-OPT-01,"Fixed Baseline DTW (8 templates, no adaptation)",magnitude,1.0,0,none,none,8,43.78,36.6,59.81,40.11,0,0,0.0
+EXP-OPT-02,3-Confirmation Single-Gallery (4 perm + 4 dyn),magnitude,single_gallery,3,none,redundancy,4,44.67,36.6,59.37,40.33,9,2,0.0462
+EXP-OPT-03,"Dual-Gallery (Mean Pairwise Check, w=0.70)",magnitude,0.7,3,max_pair<=0.9*theta,redundancy,8,43.56,36.6,59.92,40.01,3,0,0.0103
+EXP-OPT-04,"Improved Dual-Gallery (Max Pairwise Check, w=0.70) [Rec]",magnitude,0.7,3,max_pair<=0.85*theta,redundancy,8,43.56,36.6,59.92,40.01,3,0,0.0103
+EXP-OPT-05,Dual-Gallery (w_perm = 0.60),magnitude,0.6,3,max_pair<=0.85*theta,redundancy,8,43.33,37.0,59.83,40.1,3,0,0.0103
+EXP-OPT-06,Dual-Gallery (w_perm = 0.80),magnitude,0.8,3,max_pair<=0.85*theta,redundancy,8,43.78,36.6,59.81,39.47,3,0,0.0103
+EXP-OPT-07,Dual-Gallery (w_perm = 0.90 Conservative),magnitude,0.9,3,max_pair<=0.85*theta,redundancy,8,44.0,36.6,59.7,39.58,4,0,0.0107
+EXP-OPT-08,Dual-Gallery (w_perm = 0.50 Balanced),magnitude,0.5,3,max_pair<=0.85*theta,redundancy,8,42.44,37.2,60.18,39.59,3,0,0.0103
+EXP-OPT-09,Dual-Gallery (N_cand = 2),magnitude,0.7,2,max_pair<=0.85*theta,redundancy,8,44.0,36.8,59.6,39.58,13,5,0.0151
+EXP-OPT-10,Dual-Gallery (N_cand = 4),magnitude,0.7,4,max_pair<=0.85*theta,redundancy,8,43.11,36.6,60.14,39.8,1,1,0.0074
+EXP-OPT-11,Dual-Gallery (N_perm = 16 enrollment templates),magnitude,0.7,3,max_pair<=0.85*theta,redundancy,16,47.56,33.4,59.52,39.79,6,0,0.0091
+EXP-OPT-12,Dual-Gallery (FIFO replacement),magnitude,0.7,3,max_pair<=0.85*theta,fifo,8,43.56,36.6,59.92,40.01,3,0,0.0103

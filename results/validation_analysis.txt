@@ -1,0 +1,201 @@
+================================================================================
+  PHASE 1 VALIDATION — DEEP ANALYSIS
+================================================================================
+
+
+═══ 1. G vs R Stream Separation & Statistics ═══
+
+Per-stream sampling frequency:
+
+  Label 'G' streams (20 recordings):
+    Freq range: 99.90 – 100.51 Hz
+    Freq mean : 100.18 Hz
+    Freq std  : 0.1377 Hz
+    Median Δt : 0.009982 s (mean of medians)
+
+  Label 'R' streams (18 recordings):
+    Freq range: 99.90 – 100.21 Hz
+    Freq mean : 100.14 Hz
+    Freq std  : 0.1305 Hz
+    Median Δt : 0.009986 s (mean of medians)
+
+
+Per-stream value ranges (all recordings):
+
+  Label 'G':
+    X: mean=-0.1030, std=0.2583, range=2.1341
+    Y: mean=-0.7836, std=0.3870, range=2.8101
+    Z: mean=-0.0659, std=0.3175, range=3.0926
+
+  Label 'R':
+    X: mean=-0.1235, std=0.2779, range=2.3812
+    Y: mean=-0.7557, std=0.4205, range=3.2047
+    Z: mean=-0.0660, std=0.3234, range=2.9270
+
+
+═══ 2. Label Interpretation Analysis ═══
+
+Statistical clues for identifying sensor types:
+
+  Label 'G' — aggregate X/Y/Z means across all recordings:
+    X mean range: [-0.6683, 0.1782]
+    Y mean range: [-1.0294, 0.9472]
+    Z mean range: [-0.2478, 0.1564]
+    X max range : 3.9524
+    Y max range : 5.7079
+    Z max range : 5.7149
+
+  Label 'R' — aggregate X/Y/Z means across all recordings:
+    X mean range: [-0.6851, 0.1733]
+    Y mean range: [-1.0320, 0.9506]
+    Z mean range: [-0.2559, 0.1404]
+    X max range : 4.8607
+    Y max range : 5.8734
+    Z max range : 7.9274
+
+  Comparing G vs R in same recording (sub1-rp-s1):
+    Label=G:
+      Count: 24000
+      X: [-1.5146, 1.2839]
+      Y: [-2.2127, -0.2091]
+      Z: [-2.4443, 1.2444]
+      Magnitude: mean=1.0704, min=0.4026, max=2.8138
+    Label=R:
+      Count: 24000
+      X: [-1.3390, 1.6723]
+      Y: [-2.4632, -0.2142]
+      Z: [-2.1832, 0.7969]
+      Magnitude: mean=1.0636, min=0.3680, max=3.1670
+
+
+═══ 3. Timestamp Gap Analysis (threshold: 0.05 sec) ═══
+
+  Found 4 gaps > 0.05s across all streams.
+
+  sub1-rp-s2 [G]: 1 gaps, max=0.3692s, mean=0.3692s, total_gap_time=0.3692s
+  sub13-rp-s2 [R]: 1 gaps, max=29.9727s, mean=29.9727s, total_gap_time=29.9727s
+  sub3-rp-s1 [G]: 1 gaps, max=19.9651s, mean=19.9651s, total_gap_time=19.9651s
+  sub3-rp-s1 [R]: 1 gaps, max=29.9496s, mean=29.9496s, total_gap_time=29.9496s
+
+  Detailed gaps (all 4):
+    sub1-rp-s2 [G] at row 4660/23000 (20.26%): gap=0.3692s
+    sub13-rp-s2 [R] at row 26999/28000 (96.42%): gap=29.9727s
+    sub3-rp-s1 [G] at row 999/17000 (5.88%): gap=19.9651s
+    sub3-rp-s1 [R] at row 18999/28000 (67.85%): gap=29.9496s
+
+
+═══ 4. G/R Interleaving Pattern ═══
+
+  sub1-rp-s1:
+    First 20 labels: ['G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G']
+    First 20 timestamps: ['271130.701828', '271130.711777', '271130.721756', '271130.731735', '271130.741684', '271130.751663', '271130.761642', '271130.771622', '271130.781570', '271130.791550', '271130.801529', '271130.811478', '271130.821457', '271130.831436', '271130.841415', '271130.851364', '271130.861343', '271130.871323', '271130.881302', '271130.891251']
+    Shared timestamps (first 1000 each): 0
+    Label 'G' run lengths: min=24000, max=24000, mean=24000.0, num_blocks=1
+    Label 'R' run lengths: min=24000, max=24000, mean=24000.0, num_blocks=1
+
+  sub2-rp-s1:
+    First 20 labels: ['G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G']
+    First 20 timestamps: ['272087.347323', '272087.357303', '272087.367251', '272087.377231', '272087.387210', '272087.397159', '272087.407138', '272087.417117', '272087.427066', '272087.437045', '272087.447024', '272087.456973', '272087.466952', '272087.476932', '272087.486911', '272087.496860', '272087.506839', '272087.516818', '272087.526797', '272087.536746']
+    Shared timestamps (first 1000 each): 0
+    Label 'G' run lengths: min=25000, max=25000, mean=25000.0, num_blocks=1
+    Label 'R' run lengths: min=24000, max=24000, mean=24000.0, num_blocks=1
+
+  sub14-rp-s1:
+    First 20 labels: ['G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G', 'G']
+    First 20 timestamps: ['13986.669616', '13986.679595', '13986.689544', '13986.699523', '13986.709472', '13986.719451', '13986.729400', '13986.739379', '13986.749328', '13986.759307', '13986.769286', '13986.779235', '13986.789214', '13986.799163', '13986.809142', '13986.819091', '13986.829070', '13986.839019', '13986.848998', '13986.858947']
+    Shared timestamps (first 1000 each): 0
+    Label 'G' run lengths: min=29000, max=29000, mean=29000.0, num_blocks=1
+    Label 'R' run lengths: min=27000, max=27000, mean=27000.0, num_blocks=1
+
+
+═══ 5. Recordings with Missing Streams ═══
+
+  ⚠️ sub10-rp-s1: Only label(s) ['G'] — missing R stream!
+  ⚠️ sub4-rp-s1: Only label(s) ['G'] — missing R stream!
+
+
+═══ 6. Session 2 — Startup Transients & Spikes ═══
+
+  ⚠️ sub1-rp-s1 [G] Z: 45 spikes (|z|>5), max_z=7.5 at index 20199, value=-2.4443
+  ⚠️ sub1-rp-s1 [R] X: 3 spikes (|z|>5), max_z=5.3 at index 7888, value=1.6723
+  ⚠️ sub1-rp-s1 [R] Y: 1 spikes (|z|>5), max_z=5.2 at index 7887, value=-2.4632
+  ⚠️ sub1-rp-s1 [R] Z: 27 spikes (|z|>5), max_z=7.4 at index 9412, value=-2.1832
+  ⚠️ sub1-rp-s2 [G] X: 3 spikes (|z|>5), max_z=5.2 at index 9420, value=-3.2138
+  ⚠️ sub1-rp-s2 [G] Y: 4 spikes (|z|>5), max_z=5.7 at index 9854, value=-3.2734
+  ⚠️ sub1-rp-s2 [G] Z: 3 spikes (|z|>5), max_z=5.4 at index 9431, value=-1.6100
+  ⚠️ sub1-rp-s2 [R] X: 51 spikes (|z|>5), max_z=6.5 at index 7257, value=-3.9391
+  ⚠️ sub1-rp-s2 [R] Y: 7 spikes (|z|>5), max_z=7.7 at index 17561, value=-4.0807
+  ⚠️ sub1-rp-s2 [R] Z: 6 spikes (|z|>5), max_z=6.2 at index 5148, value=-1.7330
+  ⚠️ sub10-rp-s1 [G] X: 6 spikes (|z|>5), max_z=5.7 at index 27480, value=1.1391
+  ⚠️ sub10-rp-s1 [G] Y: 6 spikes (|z|>5), max_z=6.1 at index 41543, value=-2.3580
+  ⚠️ sub10-rp-s1 [G] Z: 467 spikes (|z|>5), max_z=14.1 at index 35689, value=-4.8250
+  ⚠️ sub13-rp-s1 [G] X: 8 spikes (|z|>5), max_z=6.0 at index 912, value=-1.4938
+  ⚠️ sub13-rp-s1 [G] Y: 1 spikes (|z|>5), max_z=5.7 at index 17781, value=3.9439
+  ⚠️ sub13-rp-s1 [R] X: 4 spikes (|z|>5), max_z=7.3 at index 11499, value=-1.9738
+  ⚠️ sub13-rp-s2 [G] X: 2 spikes (|z|>5), max_z=5.3 at index 15508, value=1.1188
+  ⚠️ sub13-rp-s2 [R] X: 44 spikes (|z|>5), max_z=8.7 at index 27455, value=-1.4730
+  ⚠️ sub13-rp-s2 [R] Y: 8 spikes (|z|>5), max_z=6.0 at index 13404, value=-3.8455
+  ⚠️ sub13-rp-s2 [R] Z: 3 spikes (|z|>5), max_z=6.1 at index 1647, value=2.0192
+  ⚠️ sub14-rp-s1 [G] Z: 1 spikes (|z|>5), max_z=5.1 at index 26729, value=1.1316
+  ⚠️ sub14-rp-s2 [R] Y: 7 spikes (|z|>5), max_z=12.5 at index 4418, value=-5.4362
+  ⚠️ sub14-rp-s2 [R] Z: 1 spikes (|z|>5), max_z=5.1 at index 4419, value=0.9954
+  ⚠️ sub15-rp-s1 [G] Z: 38 spikes (|z|>5), max_z=8.2 at index 24104, value=1.6955
+  ⚠️ sub15-rp-s1 [R] Z: 4 spikes (|z|>5), max_z=5.6 at index 4992, value=1.5380
+  ⚠️ sub16-rp-s1 [G] Z: 2 spikes (|z|>5), max_z=5.3 at index 13507, value=2.6537
+  ⚠️ sub16-rp-s1 [R] Z: 2 spikes (|z|>5), max_z=5.7 at index 10898, value=2.9501
+  ⚠️ sub16-rp-s2 [G] Y: 1 spikes (|z|>5), max_z=5.1 at index 15717, value=-3.9265
+  ⚠️ sub16-rp-s2 [G] Z: 23 spikes (|z|>5), max_z=6.6 at index 13296, value=-3.5534
+  ⚠️ sub16-rp-s2 [R] Z: 3 spikes (|z|>5), max_z=5.6 at index 4843, value=-3.1654
+  ⚠️ sub18-rp-s2 [G] Y: 3 spikes (|z|>5), max_z=5.7 at index 418, value=-3.7964
+  ⚠️ sub18-rp-s2 [G] Z: 2 spikes (|z|>5), max_z=5.4 at index 3031, value=1.4230
+  ⚠️ sub18-rp-s2 [R] X: 1 spikes (|z|>5), max_z=5.3 at index 3895, value=1.4018
+  ⚠️ sub18-rp-s2 [R] Y: 2 spikes (|z|>5), max_z=5.9 at index 3894, value=-3.4674
+  ⚠️ sub2-rp-s1 [G] X: 7 spikes (|z|>5), max_z=7.9 at index 20569, value=-1.3279
+  ⚠️ sub2-rp-s1 [G] Z: 44 spikes (|z|>5), max_z=8.9 at index 3169, value=-3.2734
+  ⚠️ sub2-rp-s1 [R] X: 33 spikes (|z|>5), max_z=6.7 at index 18023, value=-1.2745
+  ⚠️ sub2-rp-s1 [R] Y: 1 spikes (|z|>5), max_z=5.0 at index 7179, value=-2.8371
+  ⚠️ sub2-rp-s1 [R] Z: 86 spikes (|z|>5), max_z=11.3 at index 7124, value=-5.7831
+  ⚠️ sub2-rp-s2 [G] X: 2 spikes (|z|>5), max_z=5.0 at index 20330, value=0.9738
+  ⚠️ sub2-rp-s2 [G] Z: 6 spikes (|z|>5), max_z=6.4 at index 6573, value=-2.0235
+  ⚠️ sub3-rp-s1 [G] Z: 1 spikes (|z|>5), max_z=5.3 at index 7035, value=-1.4692
+  ⚠️ sub3-rp-s2 [G] X: 2 spikes (|z|>5), max_z=5.5 at index 2420, value=1.9104
+  ⚠️ sub3-rp-s2 [G] Y: 1 spikes (|z|>5), max_z=5.1 at index 31239, value=-4.9299
+  ⚠️ sub4-rp-s1 [G] X: 5 spikes (|z|>5), max_z=6.0 at index 25071, value=-1.0911
+  ⚠️ sub4-rp-s1 [G] Y: 1 spikes (|z|>5), max_z=5.6 at index 27164, value=-2.3073
+  ⚠️ sub4-rp-s1 [G] Z: 181 spikes (|z|>5), max_z=14.0 at index 9427, value=-4.3830
+  ⚠️ sub4-rp-s2 [G] Z: 4 spikes (|z|>5), max_z=5.4 at index 10778, value=-1.3264
+  ⚠️ sub4-rp-s2 [R] Z: 3 spikes (|z|>5), max_z=5.5 at index 13014, value=-1.3525
+
+  (If no warnings above, no significant transients or spikes found.)
+
+
+═══ 7. Cross-Participant & Session Consistency ═══
+
+  Sampling frequency consistency per stream:
+
+  [G] across all recordings:
+    Frequencies: 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 100.21, 99.90, 100.21, 100.21, 100.21, 99.90, 100.51, 99.90
+    CV (coeff of variation): 0.137%
+    ⚠️ Outlier: sub18-rp-s2 at 99.90 Hz
+    ⚠️ Outlier: sub3-rp-s2 at 99.90 Hz
+    ⚠️ Outlier: sub4-rp-s1 at 100.51 Hz
+    ⚠️ Outlier: sub4-rp-s2 at 99.90 Hz
+
+  [R] across all recordings:
+    Frequencies: 100.21, 100.20, 100.21, 100.20, 100.21, 100.21, 100.20, 100.21, 100.21, 100.20, 99.91, 100.21, 99.90, 100.21, 100.21, 100.21, 99.90, 99.90
+    CV (coeff of variation): 0.130%
+
+
+═══ 8. Recordings Needing Special Handling ═══
+
+  ⚠️ sub1-rp-s2:
+      - Has 1 gap(s), max=0.3692s
+  ⚠️ sub10-rp-s1:
+      - Only has label(s): ['G']
+  ⚠️ sub13-rp-s2:
+      - Has 1 gap(s), max=29.9727s
+  ⚠️ sub3-rp-s1:
+      - Has 2 gap(s), max=29.9496s
+  ⚠️ sub4-rp-s1:
+      - Only has label(s): ['G']
+      - Short recording: only 31000 rows

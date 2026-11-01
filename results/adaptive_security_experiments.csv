@@ -1,0 +1,5 @@
+System,Threshold,Required Confirmations,Anchor Aggregation,FAR (%),FRR (%),EER Diagnostic (%),Balanced Accuracy (%),Ordinary Accuracy (%),Total Genuine Updates,Accepted Impostor Count,Poisoned Updates Count,Mean Template Drift,Max Template Drift,Genuine Attempts,Impostor Attempts
+Fixed Baseline DTW,0.0652,0,none,43.78,36.6,40.11,59.81,60.0,0,197,0,0.0,0.0,500,450
+Config A: 1-Conf Gate (Current),0.0652,1,min,47.33,33.8,40.63,59.43,59.79,220,213,86,0.0531,0.0654,500,450
+Config B: 3-Conf Gate,0.0652,3,min,44.67,36.6,40.33,59.37,59.58,9,201,2,0.0462,0.0641,500,450
+Config C: 3-Conf + Top2-Mean Anchor,0.0652,3,top2_mean,44.67,36.6,40.33,59.37,59.58,9,201,2,0.0462,0.0641,500,450

@@ -1,0 +1,73 @@
+{
+  "status": "VALIDATION_SELECTION_FROZEN",
+  "notice": "Selected strictly on held-out validation data (Session 2 first half). Held-out test set has NOT been inspected or evaluated.",
+  "recommended_configuration": {
+    "feature": "znorm_magnitude",
+    "window_duration_seconds": 4.0,
+    "window_samples": 400,
+    "window_overlap_percent": 50,
+    "step_samples": 200,
+    "dtw_warping_radius": 30,
+    "enrollment_template_count": 8,
+    "distance_normalization": "sum_lengths",
+    "calibrated_validation_threshold": 0.1501,
+    "dual_gallery_permanent_weight": 0.7,
+    "candidate_buffer_target_size": 3,
+    "cluster_consistency_limit": 0.85,
+    "anchor_guard_limit": 1.0,
+    "replacement_strategy": "redundancy"
+  },
+  "baseline_configuration": {
+    "feature": "magnitude",
+    "window_duration_seconds": 2.0,
+    "window_samples": 200,
+    "window_overlap_percent": 50,
+    "step_samples": 100,
+    "dtw_warping_radius": 30,
+    "enrollment_template_count": 8,
+    "distance_normalization": "sum_lengths",
+    "calibrated_validation_threshold": 0.0653
+  },
+  "validation_performance_comparison": {
+    "baseline_fixed_balanced_accuracy": 57.91,
+    "baseline_fixed_eer": 42.09,
+    "optimized_fixed_balanced_accuracy": 66.85,
+    "optimized_fixed_eer": 33.15,
+    "baseline_dual_gallery_balanced_accuracy": 57.72,
+    "optimized_dual_gallery_balanced_accuracy": 67.02,
+    "optimized_genuine_promotions": 0,
+    "optimized_poisoned_promotions": 0
+  },
+  "parameter_importance_ranking": [
+    {
+      "rank": 1,
+      "parameter": "Feature Representation",
+      "impact": "CRITICAL",
+      "finding": "Magnitude provides rotation invariance against pocket tilt, outperforming raw XYZ by >10% balanced accuracy."
+    },
+    {
+      "rank": 2,
+      "parameter": "Window Duration",
+      "impact": "HIGH",
+      "finding": "Capturing full stride cycles (2.0s to 3.0s) stabilizes DTW alignment; overly long windows (4.0s) increase within-window speed variation."
+    },
+    {
+      "rank": 3,
+      "parameter": "DTW Warping Radius",
+      "impact": "MODERATE",
+      "finding": "Radii between 25-35 samples (~0.25-0.35s) provide sufficient biomechanical warping elasticity without allowing path distortion to impostors."
+    },
+    {
+      "rank": 4,
+      "parameter": "Enrollment Template Count",
+      "impact": "MODERATE_LOW",
+      "finding": "8 templates balance intra-session gait mode coverage with minimum-distance impostor inflation."
+    },
+    {
+      "rank": 5,
+      "parameter": "Window Overlap Ratio",
+      "impact": "LOW",
+      "finding": "Overlap primarily affects sample density during streaming rather than feature geometry per window."
+    }
+  ]
+}

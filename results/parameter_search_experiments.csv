@@ -1,0 +1,31 @@
+exp_id,stage,config_name,feature,window_sec,overlap_pct,dtw_radius,n_templates,system,val_far_pct,val_frr_pct,val_balanced_acc_pct,val_eer_pct,val_eer_threshold,genuine_mean_dist,impostor_mean_dist,separation_margin,genuine_promotions,poisoned_promotions,mean_drift,rank
+EXP-STG1-02,1_feature,"Z-Normalised Magnitude (Zero-Mean, Unit-Variance)",znorm_magnitude,2.0,50,30,8,Fixed Baseline,36.67,37.0,63.17,36.83,0.152,0.1431,0.1728,0.0297,0,0,0.0,1
+EXP-STG1-01,1_feature,Acceleration Magnitude ||a|| [Baseline Control],magnitude,2.0,50,30,8,Fixed Baseline,41.85,42.33,57.91,42.09,0.0653,0.0671,0.0782,0.011,0,0,0.0,2
+EXP-STG1-04,1_feature,Channel-Standardized Tri-Axial XYZ,znorm_xyz,2.0,50,30,8,Fixed Baseline,42.22,42.67,57.56,42.44,0.8085,0.7665,0.8106,0.0442,0,0,0.0,3
+EXP-STG1-03,1_feature,"Raw Tri-Axial Accelerometer (X, Y, Z)",raw_xyz,2.0,50,30,8,Fixed Baseline,42.96,43.0,57.02,42.98,0.254,0.4041,0.3998,-0.0043,0,0,0.0,4
+EXP-STG1-05,1_feature,Dynamic Acceleration (Gravity-Compensated Zero-Mean),dynamic_xyz,2.0,50,30,8,Fixed Baseline,45.56,45.33,54.56,45.44,0.2167,0.2347,0.2423,0.0076,0,0,0.0,5
+EXP-STG2-11,2_window_overlap,Window 4.0s (400 samples) @ 50% Overlap,znorm_magnitude,4.0,50,30,8,Fixed Baseline,32.96,33.33,66.85,33.15,0.1501,0.1397,0.1663,0.0266,0,0,0.0,1
+EXP-STG2-07,2_window_overlap,Window 3.0s (300 samples) @ 25% Overlap,znorm_magnitude,3.0,25,30,8,Fixed Baseline,34.07,34.0,65.96,34.04,0.1531,0.1408,0.1709,0.0301,0,0,0.0,2
+EXP-STG2-12,2_window_overlap,Window 4.0s (400 samples) @ 75% Overlap,znorm_magnitude,4.0,75,30,8,Fixed Baseline,34.44,34.33,65.61,34.39,0.152,0.1423,0.1711,0.0288,0,0,0.0,3
+EXP-STG2-05,2_window_overlap,Window 2.5s (250 samples) @ 50% Overlap,znorm_magnitude,2.5,50,30,8,Fixed Baseline,34.44,34.67,65.44,34.56,0.15,0.1413,0.1694,0.0281,0,0,0.0,4
+EXP-STG2-04,2_window_overlap,Window 2.5s (250 samples) @ 25% Overlap,znorm_magnitude,2.5,25,30,8,Fixed Baseline,35.56,35.67,64.39,35.61,0.149,0.1398,0.167,0.0272,0,0,0.0,5
+EXP-STG2-10,2_window_overlap,Window 4.0s (400 samples) @ 25% Overlap,znorm_magnitude,4.0,25,30,8,Fixed Baseline,36.3,36.33,63.69,36.31,0.1509,0.1386,0.1649,0.0263,0,0,0.0,6
+EXP-STG2-01,2_window_overlap,Window 2.0s (200 samples) @ 25% Overlap,znorm_magnitude,2.0,25,30,8,Fixed Baseline,36.67,36.67,63.33,36.67,0.1524,0.1403,0.1679,0.0276,0,0,0.0,7
+EXP-STG2-02,2_window_overlap,Window 2.0s (200 samples) @ 50% Overlap,znorm_magnitude,2.0,50,30,8,Fixed Baseline,36.67,37.0,63.17,36.83,0.152,0.1431,0.1728,0.0297,0,0,0.0,8
+EXP-STG2-06,2_window_overlap,Window 2.5s (250 samples) @ 75% Overlap,znorm_magnitude,2.5,75,30,8,Fixed Baseline,36.67,37.33,63.0,37.0,0.1521,0.1471,0.172,0.0249,0,0,0.0,9
+EXP-STG2-08,2_window_overlap,Window 3.0s (300 samples) @ 50% Overlap,znorm_magnitude,3.0,50,30,8,Fixed Baseline,37.41,37.67,62.46,37.54,0.1521,0.1424,0.169,0.0266,0,0,0.0,10
+EXP-STG2-09,2_window_overlap,Window 3.0s (300 samples) @ 75% Overlap,znorm_magnitude,3.0,75,30,8,Fixed Baseline,37.78,38.0,62.11,37.89,0.1546,0.1471,0.1746,0.0275,0,0,0.0,11
+EXP-STG2-03,2_window_overlap,Window 2.0s (200 samples) @ 75% Overlap,znorm_magnitude,2.0,75,30,8,Fixed Baseline,39.63,40.0,60.19,39.81,0.1583,0.1511,0.175,0.0238,0,0,0.0,12
+EXP-STG3-04,3_dtw_radius,Sakoe-Chiba Radius = 30 samples (~300ms tolerance),znorm_magnitude,4.0,50,30,8,Fixed Baseline,32.96,33.33,66.85,33.15,0.1501,0.1397,0.1663,0.0266,0,0,0.0,1
+EXP-STG3-07,3_dtw_radius,Sakoe-Chiba Radius = 50 samples (~500ms tolerance),znorm_magnitude,4.0,50,50,8,Fixed Baseline,33.33,33.0,66.83,33.17,0.1436,0.1349,0.1608,0.0259,0,0,0.0,2
+EXP-STG3-06,3_dtw_radius,Sakoe-Chiba Radius = 40 samples (~400ms tolerance),znorm_magnitude,4.0,50,40,8,Fixed Baseline,33.7,34.0,66.15,33.85,0.1458,0.1362,0.1624,0.0261,0,0,0.0,3
+EXP-STG3-05,3_dtw_radius,Sakoe-Chiba Radius = 35 samples (~350ms tolerance),znorm_magnitude,4.0,50,35,8,Fixed Baseline,34.07,34.0,65.96,34.04,0.1477,0.1378,0.1639,0.0261,0,0,0.0,4
+EXP-STG3-03,3_dtw_radius,Sakoe-Chiba Radius = 25 samples (~250ms tolerance),znorm_magnitude,4.0,50,25,8,Fixed Baseline,35.19,35.0,64.91,35.09,0.1544,0.1434,0.1707,0.0273,0,0,0.0,5
+EXP-STG3-02,3_dtw_radius,Sakoe-Chiba Radius = 20 samples (~200ms tolerance),znorm_magnitude,4.0,50,20,8,Fixed Baseline,40.0,40.0,60.0,40.0,0.1627,0.1502,0.1797,0.0295,0,0,0.0,6
+EXP-STG3-01,3_dtw_radius,Sakoe-Chiba Radius = 15 samples (~150ms tolerance),znorm_magnitude,4.0,50,15,8,Fixed Baseline,40.74,40.67,59.3,40.7,0.1768,0.1631,0.1948,0.0317,0,0,0.0,7
+EXP-STG4-03,4_template_count,Enrollment Gallery Size = 8 templates per participant,znorm_magnitude,4.0,50,30,8,Fixed Baseline,32.96,33.33,66.85,33.15,0.1501,0.1397,0.1663,0.0266,0,0,0.0,1
+EXP-STG4-04,4_template_count,Enrollment Gallery Size = 10 templates per participant,znorm_magnitude,4.0,50,30,10,Fixed Baseline,34.81,34.33,65.43,34.57,0.1477,0.1356,0.1643,0.0286,0,0,0.0,2
+EXP-STG4-02,4_template_count,Enrollment Gallery Size = 6 templates per participant,znorm_magnitude,4.0,50,30,6,Fixed Baseline,38.15,38.33,61.76,38.24,0.1566,0.1443,0.17,0.0256,0,0,0.0,3
+EXP-STG4-01,4_template_count,Enrollment Gallery Size = 4 templates per participant,znorm_magnitude,4.0,50,30,4,Fixed Baseline,38.52,38.67,61.41,38.59,0.1621,0.1513,0.1758,0.0244,0,0,0.0,4
+EXP-STG5-01,5_dual_gallery_validation,"Baseline Dual-Gallery (Magnitude, 2.0s, 50%, R=30, N=8)",magnitude,2.0,50,30,8,Candidate-Buffer Dual-Gallery,42.22,42.33,57.72,41.94,0.0653,0.0671,0.0782,0.011,2,0,0.0067,2
+EXP-STG5-02,5_dual_gallery_validation,"Optimized Dual-Gallery (znorm_magnitude, 4.0s, 50%, R=30, N=8)",znorm_magnitude,4.0,50,30,8,Candidate-Buffer Dual-Gallery,32.96,33.0,67.02,32.98,0.1501,0.1397,0.1663,0.0266,0,0,0.0,1

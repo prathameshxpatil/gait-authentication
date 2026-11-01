@@ -1,0 +1,23 @@
+# Gait-Based Biometric Authentication Dependencies
+# Python 3.10+
+# Install: pip install -r requirements.txt
+
+# Core Numerical & Scientific Computing
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+
+# JIT Dynamic Time Warping Acceleration
+numba>=0.57.0
+
+# Visualization & Plotting
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Testing & Verification
+pytest>=7.0.0
+
+# Exploratory Notebooks (notebooks/dataset_exploration.ipynb)
+jupyter>=1.0.0
+nbformat>=5.7.0
+ipykernel>=6.20.0
