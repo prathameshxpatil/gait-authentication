@@ -223,6 +223,135 @@ def evaluate_fixed_threshold(
     }
 
 
+def compute_cohort_metrics(
+    genuine_scores_by_user: dict[int, list[float] | np.ndarray],
+    impostor_scores_against_gallery: dict[int, list[float] | np.ndarray],
+    threshold: float
+) -> dict:
+    """
+    Compute micro- and macro-averaged biometric authentication metrics across a cohort,
+    where FAR is strictly evaluated per enrolled identity (gallery).
+
+    For each enrolled participant i:
+      - Genuine attempts: Session 2 windows belonging to i, evaluated against gallery i.
+      - False rejects: Genuine attempts where score > threshold.
+      - Impostor attempts: All windows belonging to the other participants (j != i),
+        evaluated against gallery i.
+      - False accepts: Impostor attempts where score <= threshold.
+
+    Calculates:
+      FAR_i = False Accepts against gallery i / Total impostor attempts against gallery i
+      FRR_i = False Rejects for identity i / Total genuine attempts for identity i
+      Macro FAR = Mean(FAR_i) across identities
+      Macro FRR = Mean(FRR_i) across identities
+      Macro Balanced Accuracy = 100% - (Macro FAR + Macro FRR) / 2
+      Micro FAR = Sum(False Accepts) / Sum(Impostor Attempts)
+      Micro FRR = Sum(False Rejects) / Sum(Genuine Attempts)
+      Micro Balanced Accuracy = 100% - (Micro FAR + Micro FRR) / 2
+
+    Parameters
+    ----------
+    genuine_scores_by_user : dict[int, array-like]
+        Mapping from participant_id -> genuine verification distances.
+    impostor_scores_against_gallery : dict[int, array-like]
+        Mapping from participant_id -> impostor verification distances against gallery i.
+    threshold : float
+        Decision threshold.
+
+    Returns
+    -------
+    dict
+        Structured results with keys:
+          - 'per_participant': list of dicts with individual metrics
+          - 'macro': dict with macro_far, macro_frr, macro_balanced_accuracy
+          - 'micro': dict with micro_far, micro_frr, micro_balanced_accuracy, totals
+    """
+    pids = sorted(genuine_scores_by_user.keys())
+    per_user = []
+
+    total_fa = 0
+    total_fr = 0
+    total_gen = 0
+    total_imp = 0
+
+    far_list = []
+    frr_list = []
+    bal_acc_list = []
+
+    for pid in pids:
+        gen = np.asarray(genuine_scores_by_user[pid], dtype=np.float64)
+        imp = np.asarray(impostor_scores_against_gallery[pid], dtype=np.float64)
+
+        n_gen_i = len(gen)
+        n_imp_i = len(imp)
+
+        if n_gen_i == 0:
+            raise ValueError(f"Participant {pid} has 0 genuine attempts.")
+        if n_imp_i == 0:
+            raise ValueError(f"Gallery {pid} has 0 impostor attempts.")
+
+        fa_i = int(np.sum(imp <= threshold))
+        fr_i = int(np.sum(gen > threshold))
+
+        far_i = fa_i / n_imp_i
+        frr_i = fr_i / n_gen_i
+        bal_acc_i = 1.0 - (far_i + frr_i) / 2.0
+
+        far_list.append(far_i)
+        frr_list.append(frr_i)
+        bal_acc_list.append(bal_acc_i)
+
+        total_fa += fa_i
+        total_fr += fr_i
+        total_gen += n_gen_i
+        total_imp += n_imp_i
+
+        per_user.append({
+            "participant_id": pid,
+            "n_genuine": n_gen_i,
+            "n_impostor": n_imp_i,
+            "false_accepts": fa_i,
+            "false_rejects": fr_i,
+            "far": float(far_i),
+            "frr": float(frr_i),
+            "far_percent": float(far_i * 100.0),
+            "frr_percent": float(frr_i * 100.0),
+            "balanced_accuracy_percent": float(bal_acc_i * 100.0),
+        })
+
+    macro_far = float(np.mean(far_list))
+    macro_frr = float(np.mean(frr_list))
+    macro_bal_acc = float(np.mean(bal_acc_list))
+
+    micro_far = total_fa / total_imp if total_imp > 0 else 0.0
+    micro_frr = total_fr / total_gen if total_gen > 0 else 0.0
+    micro_bal_acc = 1.0 - (micro_far + micro_frr) / 2.0
+
+    return {
+        "threshold": float(threshold),
+        "n_participants": len(pids),
+        "macro": {
+            "far": macro_far,
+            "frr": macro_frr,
+            "far_percent": macro_far * 100.0,
+            "frr_percent": macro_frr * 100.0,
+            "balanced_accuracy_percent": macro_bal_acc * 100.0,
+        },
+        "micro": {
+            "total_genuine_attempts": total_gen,
+            "total_impostor_attempts": total_imp,
+            "total_false_accepts": total_fa,
+            "total_false_rejects": total_fr,
+            "far": float(micro_far),
+            "frr": float(micro_frr),
+            "far_percent": float(micro_far * 100.0),
+            "frr_percent": float(micro_frr * 100.0),
+            "balanced_accuracy_percent": float(micro_bal_acc * 100.0),
+        },
+        "per_participant": per_user,
+    }
+
+
 # ---------------------------------------------------------------------------
 # 4 Visualizations
 # ---------------------------------------------------------------------------

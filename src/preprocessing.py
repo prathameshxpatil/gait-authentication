@@ -142,6 +142,8 @@ def preprocess_stream_segment(
     session: int,
     label: str,
     segment_id: int,
+    placement: str = "RP",
+    bout: int = 1,
     cutoff_hz: float = 20.0,
     filter_order: int = 4,
     timestamp_col: str = "Timestamp",
@@ -153,7 +155,7 @@ def preprocess_stream_segment(
       2. Estimate actual segment sampling rate.
       3. Apply zero-phase 4th order Butterworth filter to each axis.
       4. Compute vector magnitude: a_mag = sqrt(X^2 + Y^2 + Z^2).
-      5. Annotate metadata columns.
+      5. Annotate metadata columns (participant, placement, session, bout, segment).
 
     Parameters
     ----------
@@ -167,6 +169,10 @@ def preprocess_stream_segment(
         'G' (Going) or 'R' (Returning).
     segment_id : int
         Sub-segment index (e.g. 0, 1).
+    placement : str
+        Sensor placement ('RP' or 'LW', default: 'RP').
+    bout : int
+        Walking bout index for collision disambiguation (default: 1).
     cutoff_hz : float
         Filter cutoff frequency (default: 20 Hz).
     filter_order : int
@@ -220,7 +226,9 @@ def preprocess_stream_segment(
 
     # 5. Metadata columns
     df["participant_id"] = participant_id
+    df["placement"] = placement
     df["session"] = session
+    df["bout"] = bout
     df["label"] = label
     df["segment_id"] = segment_id
     df["fs_est"] = round(fs_est, 2)
@@ -237,7 +245,7 @@ def preprocess_recording(
 ) -> list[pd.DataFrame]:
     """
     Full preprocessing pipeline for an individual raw CSV recording:
-      - Extracts participant and session metadata from the name.
+      - Extracts participant, placement, session, and bout metadata.
       - Separates 'G' and 'R' walking streams.
       - Detects and splits across any gap > gap_threshold_sec.
       - Filters each continuous sub-segment and normalizes timestamps.
@@ -247,7 +255,7 @@ def preprocess_recording(
     df_raw : pd.DataFrame
         Raw recording DataFrame.
     recording_name : str
-        e.g. 'sub1-rp-s1'.
+        e.g. 'sub1-rp-s1' or 'sub19-lw-s2-b1'.
     gap_threshold_sec : float
         Discontinuity threshold in seconds (default: 0.5s).
     cutoff_hz : float
@@ -260,14 +268,25 @@ def preprocess_recording(
     list[pd.DataFrame]
         List of preprocessed continuous segment DataFrames.
     """
-    # Parse participant ID and session from name
-    m = re.search(r"sub(\d+)-rp-s(\d+)", recording_name)
-    if m:
-        participant_id = int(m.group(1))
-        session = int(m.group(2))
-    else:
-        participant_id = 0
-        session = 1
+    # 1. Prefer metadata attached in df_raw.attrs by data_loader
+    participant_id = df_raw.attrs.get("participant_id")
+    placement = df_raw.attrs.get("placement")
+    session = df_raw.attrs.get("session")
+    bout = df_raw.attrs.get("bout", 1)
+
+    # 2. If attrs absent, parse from recording_name
+    if participant_id is None or placement is None or session is None:
+        m = re.search(r"sub(\d+)-(rp|lw)-s(\d+)(?:-b(\d+))?", recording_name, re.IGNORECASE)
+        if m:
+            participant_id = int(m.group(1))
+            placement = m.group(2).upper()
+            session = int(m.group(3))
+            bout = int(m.group(4)) if m.group(4) else 1
+        else:
+            participant_id = 0
+            placement = "RP"
+            session = 1
+            bout = 1
 
     processed_segments = []
 
@@ -300,6 +319,8 @@ def preprocess_recording(
                 session=session,
                 label=str(label_val),
                 segment_id=seg_idx,
+                placement=placement,
+                bout=bout,
                 cutoff_hz=cutoff_hz,
                 filter_order=filter_order,
             )
@@ -311,29 +332,43 @@ def preprocess_recording(
 
 
 def get_processed_data_dir(project_root: str = None) -> str:
-    """Return absolute path to data/processed/."""
+    """Return absolute path to historical data/processed/ (baseline 10-participant data)."""
     if project_root is None:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(project_root, "data", "processed")
 
 
+def get_expanded_processed_data_dir(project_root: str = None) -> str:
+    """Return absolute path to data/processed_expanded/ (expanded 92-participant data)."""
+    if project_root is None:
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(project_root, "data", "processed_expanded")
+
+
 def preprocess_all_recordings(
     raw_dir: str = None,
     processed_dir: str = None,
-    save_files: bool = True
+    save_files: bool = True,
+    placement: str = None,
+    use_manifest: bool = True
 ) -> dict[str, pd.DataFrame]:
     """
-    Run the preprocessing pipeline over all raw recordings in the dataset.
-    Saves clean segment files to data/processed/.
+    Run the preprocessing pipeline over raw recordings in the dataset.
+    Saves clean segment files to data/processed_expanded/ by default
+    to preserve historical data/processed/ baseline outputs.
 
     Parameters
     ----------
     raw_dir : str, optional
         Path to raw data directory.
     processed_dir : str, optional
-        Path to save processed CSVs (default: data/processed/).
+        Path to save processed CSVs (default: data/processed_expanded/).
     save_files : bool
         Whether to persist processed segments as CSV files.
+    placement : str, optional
+        Filter recordings by placement ('RP', 'LW', or None for all).
+    use_manifest : bool
+        Whether to load files using the dataset manifest (default: True).
 
     Returns
     -------
@@ -341,12 +376,12 @@ def preprocess_all_recordings(
         Mapping from segment ID (e.g. 'sub1-rp-s1_G_seg0') to preprocessed DataFrame.
     """
     if processed_dir is None:
-        processed_dir = get_processed_data_dir()
+        processed_dir = get_expanded_processed_data_dir()
 
     if save_files:
         os.makedirs(processed_dir, exist_ok=True)
 
-    recordings = load_all_recordings(raw_dir)
+    recordings = load_all_recordings(raw_dir=raw_dir, placement=placement, use_manifest=use_manifest)
     all_processed_segments = {}
 
     print(f"Preprocessing {len(recordings)} raw recordings...")

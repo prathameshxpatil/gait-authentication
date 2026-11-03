@@ -35,3 +35,4 @@ env/
 # Data directories (raw biometric recordings and processed segments)
 data/raw/
 data/processed/
+data/processed_expanded/

@@ -1,0 +1,43 @@
+{
+  "status": "COMPLETED",
+  "cohort_name": "Expanded Right Pocket Cohort",
+  "participant_count": 55,
+  "calibration_methodology": "Cohort-calibrated threshold selection using validation scores from the 55 enrolled participants",
+  "frozen_calibrated_threshold": 0.13362185565710222,
+  "validation_metrics": {
+    "eer_percent": 28.862475787990842,
+    "calibrated_threshold": 0.13362185565710222,
+    "total_genuine_attempts": 6310,
+    "total_impostor_attempts": 340740,
+    "total_false_accepts": 98358,
+    "total_false_rejects": 1821,
+    "micro_far_percent": 28.86599753477725,
+    "micro_frr_percent": 28.858954041204438,
+    "micro_balanced_accuracy_percent": 71.13752421200917,
+    "macro_far_percent": 28.86178475142371,
+    "macro_frr_percent": 28.195782476466285,
+    "macro_balanced_accuracy_percent": 71.471216386055,
+    "genuine_mean": 0.11919163912534714,
+    "genuine_std": 0.034026239067316055,
+    "impostor_mean": 0.15223343670368195,
+    "impostor_std": 0.030055692419409752
+  },
+  "test_metrics": {
+    "frozen_threshold": 0.13362185565710222,
+    "total_genuine_attempts": 6291,
+    "total_impostor_attempts": 339714,
+    "total_false_accepts": 99014,
+    "total_false_rejects": 1670,
+    "micro_far_percent": 29.14628187239855,
+    "micro_frr_percent": 26.545859163884916,
+    "micro_balanced_accuracy_percent": 72.15392948185827,
+    "macro_far_percent": 29.142327104155463,
+    "macro_frr_percent": 25.922258077003395,
+    "macro_balanced_accuracy_percent": 72.46770740942057,
+    "diagnostic_eer_percent": 27.539930647544697,
+    "genuine_mean": 0.11872432380914688,
+    "genuine_std": 0.034806713461875916,
+    "impostor_mean": 0.15229856967926025,
+    "impostor_std": 0.030367303639650345
+  }
+}

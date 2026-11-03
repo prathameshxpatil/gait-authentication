@@ -1,0 +1,10 @@
+strategy,seed,runtime_sec,total_genuine,total_impostor,true_accepts,false_rejects,false_accepts,micro_far_percent,micro_frr_percent,micro_balanced_accuracy_percent,macro_far_percent,macro_frr_percent,macro_balanced_accuracy_percent,total_updates,genuine_updates,poisoned_updates,poisoning_rate_percent,mean_drift,max_drift
+Fixed Baseline,42,6.39,6310,340740,4489,1821,98358,28.87,28.86,71.14,28.86,28.2,71.47,0,0,0,0.0,0.0,0.0
+Fixed Baseline,100,6.45,6310,340740,4489,1821,98358,28.87,28.86,71.14,28.86,28.2,71.47,0,0,0,0.0,0.0,0.0
+Fixed Baseline,2024,6.37,6310,340740,4489,1821,98358,28.87,28.86,71.14,28.86,28.2,71.47,0,0,0,0.0,0.0,0.0
+Dual-Gallery Standard,42,7.41,6310,340740,4478,1832,98090,28.79,29.03,71.09,28.78,28.38,71.42,1,0,1,100.0,0.00159,0.08734
+Dual-Gallery Standard,100,11.21,6310,340740,4464,1846,97020,28.47,29.26,71.14,28.47,28.61,71.46,1,0,1,100.0,0.00146,0.08031
+Dual-Gallery Standard,2024,7.6,6310,340740,4489,1821,98358,28.87,28.86,71.14,28.86,28.2,71.47,0,0,0,0.0,0.0,0.0
+Dual-Gallery Conservative,42,7.54,6310,340740,4489,1821,98358,28.87,28.86,71.14,28.86,28.2,71.47,0,0,0,0.0,0.0,0.0
+Dual-Gallery Conservative,100,7.21,6310,340740,4489,1821,98358,28.87,28.86,71.14,28.86,28.2,71.47,0,0,0,0.0,0.0,0.0
+Dual-Gallery Conservative,2024,6.89,6310,340740,4489,1821,98358,28.87,28.86,71.14,28.86,28.2,71.47,0,0,0,0.0,0.0,0.0

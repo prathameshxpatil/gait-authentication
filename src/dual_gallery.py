@@ -139,13 +139,22 @@ class CandidateCluster:
 class CandidateBuffer:
     """
     Temporary buffer that collects high-confidence candidate windows.
-    Enforces temporal independence and flushes upon confidence deterioration.
+    Enforces temporal independence, handles expiration, overflow, and flushes
+    upon confidence deterioration or cluster rejection.
     """
-    def __init__(self, target_size: int = 3):
+    def __init__(
+        self,
+        target_size: int = 3,
+        max_age_steps: int = 20,
+        max_capacity: int = 5,
+    ):
         self.target_size = target_size
+        self.max_age_steps = max_age_steps
+        self.max_capacity = max_capacity
         self.buffer_windows: list[GaitWindow] = []
         self.buffer_scores: list[float] = []
         self.buffer_is_genuine: list[bool] = []
+        self.buffer_steps: list[int] = []
 
     def __len__(self) -> int:
         return len(self.buffer_windows)
@@ -154,24 +163,49 @@ class CandidateBuffer:
         """Check if buffer has reached required candidate count."""
         return len(self.buffer_windows) >= self.target_size
 
+    def expire_old_candidates(self, current_step: int) -> int:
+        """Evict candidates older than max_age_steps."""
+        if self.max_age_steps <= 0 or not self.buffer_steps:
+            return 0
+        valid_idx = [i for i, s in enumerate(self.buffer_steps) if (current_step - s) <= self.max_age_steps]
+        expired_cnt = len(self.buffer_windows) - len(valid_idx)
+        if expired_cnt > 0:
+            self.buffer_windows = [self.buffer_windows[i] for i in valid_idx]
+            self.buffer_scores = [self.buffer_scores[i] for i in valid_idx]
+            self.buffer_is_genuine = [self.buffer_is_genuine[i] for i in valid_idx]
+            self.buffer_steps = [self.buffer_steps[i] for i in valid_idx]
+        return expired_cnt
+
     def add_candidate(
         self,
         window: GaitWindow,
         score: float,
+        step: int = 0,
         is_genuine: bool = True,
     ) -> tuple[bool, str]:
         """
         Attempt to add a high-confidence window to the buffer.
-        Enforces that candidate must NOT overlap temporally with the preceding candidate.
+        Enforces that candidate must NOT overlap temporally with the preceding candidate,
+        and bounds buffer capacity against overflow.
         """
         if len(self.buffer_windows) > 0:
             last_w = self.buffer_windows[-1]
             if are_windows_overlapping(last_w, window):
                 return False, "overlapping_window"
 
+        # Enforce max buffer capacity (overflow protection)
+        if len(self.buffer_windows) >= self.max_capacity:
+            # Evict oldest candidate
+            self.buffer_windows.pop(0)
+            self.buffer_scores.pop(0)
+            self.buffer_is_genuine.pop(0)
+            if self.buffer_steps:
+                self.buffer_steps.pop(0)
+
         self.buffer_windows.append(window)
         self.buffer_scores.append(score)
         self.buffer_is_genuine.append(is_genuine)
+        self.buffer_steps.append(step)
         return True, "appended"
 
     def clear(self) -> int:
@@ -180,6 +214,7 @@ class CandidateBuffer:
         self.buffer_windows = []
         self.buffer_scores = []
         self.buffer_is_genuine = []
+        self.buffer_steps = []
         return cleared_count
 
     def get_cluster(self) -> CandidateCluster:
@@ -194,6 +229,11 @@ class CandidateBuffer:
 class DualGallery:
     """
     Dual-Gallery Biometric State for an enrolled participant.
+
+    Guarantees:
+      1. Permanent templates (G_perm) are strictly immutable and can never be overwritten.
+      2. Adaptive templates (G_adapt) are bounded and can only be updated via verified candidate clusters.
+      3. Comprehensive event logging tracks all authentication, buffer, and promotion decisions.
     """
     def __init__(
         self,
@@ -205,30 +245,59 @@ class DualGallery:
         dtw_radius: int = 30,
         norm_mode: str = "sum_lengths",
         replacement_strategy: str = "redundancy",
+        max_candidate_age_steps: int = 20,
+        max_buffer_capacity: int = 5,
     ):
         self.participant_id = participant_id
-        # Permanent gallery: completely immutable
-        self.permanent_templates: list[np.ndarray] = [np.copy(t) for t in permanent_templates]
+
+        # Permanent gallery: completely immutable tuple with read-only array flags
+        frozen_tmpls = []
+        for t in permanent_templates:
+            t_arr = np.array(t, copy=True, dtype=np.float64)
+            t_arr.flags.writeable = False  # Blocks in-place mutation at NumPy/C level
+            frozen_tmpls.append(t_arr)
+        self._permanent_templates = tuple(frozen_tmpls)
+
         # Adaptive gallery: starts empty, bounded capacity
-        self.adaptive_templates: list[np.ndarray] = []
+        self._adaptive_templates: list[np.ndarray] = []
         self.max_adaptive_capacity = max_adaptive_capacity
         self.w_perm = float(w_perm)
         self.dtw_radius = dtw_radius
         self.norm_mode = norm_mode
         self.replacement_strategy = replacement_strategy
 
-        self.candidate_buffer = CandidateBuffer(target_size=candidate_target_size)
+        self.candidate_buffer = CandidateBuffer(
+            target_size=candidate_target_size,
+            max_age_steps=max_candidate_age_steps,
+            max_capacity=max_buffer_capacity,
+        )
         self.drift_history: list[float] = [0.0]
+        self.step_counter: int = 0
+
+        # Structured Audit Logs
+        self.auth_decision_logs: list[dict] = []
+        self.buffer_event_logs: list[dict] = []
+        self.gallery_update_logs: list[dict] = []
+
+    @property
+    def permanent_templates(self) -> tuple[np.ndarray, ...]:
+        """Immutable permanent enrollment templates."""
+        return self._permanent_templates
+
+    @property
+    def adaptive_templates(self) -> list[np.ndarray]:
+        """Active adaptive templates."""
+        return self._adaptive_templates
 
     def compute_current_drift(self) -> float:
         """
         Compute mean DTW distance of active adaptive templates to their closest permanent anchor.
         Returns 0.0 if adaptive gallery is empty.
         """
-        if not self.adaptive_templates:
+        if not self._adaptive_templates:
             return 0.0
         drifts = []
-        for at in self.adaptive_templates:
+        for at in self._adaptive_templates:
             min_d = min(
                 multivariate_dtw_distance(
                     at,
@@ -236,7 +305,7 @@ class DualGallery:
                     window_radius=self.dtw_radius,
                     norm_mode=self.norm_mode,
                 )
-                for pt in self.permanent_templates
+                for pt in self._permanent_templates
             )
             drifts.append(min_d)
         return float(np.mean(drifts))
@@ -254,11 +323,11 @@ class DualGallery:
                 window_radius=self.dtw_radius,
                 norm_mode=self.norm_mode,
             )
-            for t in self.permanent_templates
+            for t in self._permanent_templates
         )
 
         # 2. Distance to adaptive gallery (if empty, fallback to d_perm)
-        if not self.adaptive_templates:
+        if not self._adaptive_templates:
             d_adapt = d_perm
         else:
             d_adapt = min(
@@ -268,7 +337,7 @@ class DualGallery:
                     window_radius=self.dtw_radius,
                     norm_mode=self.norm_mode,
                 )
-                for t in self.adaptive_templates
+                for t in self._adaptive_templates
             )
 
         # 3. Combined score
@@ -283,32 +352,49 @@ class DualGallery:
         beta_anchor_guard: float = 1.00,
         gamma_cluster_consistency: float = 0.85,
         is_genuine_groundtruth: bool = True,
+        step: Optional[int] = None,
+        claimant_id: Optional[int] = None,
     ) -> tuple[bool, float, float, float, bool, Optional[dict]]:
         """
         Process an incoming authentication attempt and handle candidate buffering / promotion.
-
-        Parameters
-        -------
-        window : GaitWindow
-            Incoming gait window.
-        threshold : float
-            Decision threshold (theta*).
-        alpha_high_confidence : float
-            Update confidence gate fraction (e.g. 0.70).
-        beta_anchor_guard : float
-            Anchor drift guard limit factor (e.g. 1.00).
-        gamma_cluster_consistency : float
-            Maximum allowable MAXIMUM pairwise DTW within candidate cluster (e.g. 0.85 * theta*).
-        is_genuine_groundtruth : bool
-            Ground truth flag (for auditing / logging only; NEVER used for online decisions).
-
-        Returns
-        -------
-        tuple: (accepted, score_comb, score_perm, score_adapt, promoted, event_metadata)
         """
+        if step is not None:
+            self.step_counter = step
+        else:
+            self.step_counter += 1
+        curr_step = self.step_counter
+        c_id = claimant_id if claimant_id is not None else window.participant_id
+        win_id = getattr(window, "window_id", f"win_p{window.participant_id}_{curr_step}")
+
+        # Check for candidate expiration in buffer
+        expired_cnt = self.candidate_buffer.expire_old_candidates(curr_step)
+        if expired_cnt > 0:
+            self.buffer_event_logs.append({
+                "step": curr_step,
+                "action": "candidates_expired",
+                "reason": f"Evicted {expired_cnt} candidates exceeding max_age_steps={self.candidate_buffer.max_age_steps}",
+                "buffer_size_after": len(self.candidate_buffer),
+                "trigger_score": None,
+                "is_genuine_groundtruth": is_genuine_groundtruth,
+            })
+
         d_perm, d_adapt, d_comb = self.compute_distances(window.data)
         is_accepted = bool(d_comb <= threshold)
         is_high_conf = bool(d_comb <= alpha_high_confidence * threshold)
+
+        # Record authentication decision log
+        self.auth_decision_logs.append({
+            "step": curr_step,
+            "window_id": win_id,
+            "claimant_id": c_id,
+            "score_perm": float(d_perm),
+            "score_adapt": float(d_adapt),
+            "score_comb": float(d_comb),
+            "threshold": float(threshold),
+            "accepted": is_accepted,
+            "is_high_conf": is_high_conf,
+            "is_genuine_groundtruth": is_genuine_groundtruth,
+        })
 
         event_metadata: Optional[dict] = None
         was_promoted = False
@@ -320,16 +406,45 @@ class DualGallery:
                 event_metadata = {
                     "event_type": "buffer_quarantined_low_conf",
                     "cleared_count": cleared_count,
-                    "trigger_score": d_comb,
+                    "trigger_score": float(d_comb),
                     "trigger_is_genuine": is_genuine_groundtruth,
+                    "step": curr_step,
                 }
+                self.buffer_event_logs.append({
+                    "step": curr_step,
+                    "action": "buffer_quarantined_low_conf",
+                    "reason": f"Score {d_comb:.4f} > high-conf limit {alpha_high_confidence*threshold:.4f}",
+                    "buffer_size_after": 0,
+                    "trigger_score": float(d_comb),
+                    "is_genuine_groundtruth": is_genuine_groundtruth,
+                })
         else:
             # High-confidence attempt: attempt candidate buffer insertion
             appended, reason = self.candidate_buffer.add_candidate(
                 window=window,
                 score=d_comb,
+                step=curr_step,
                 is_genuine=is_genuine_groundtruth,
             )
+
+            if appended:
+                self.buffer_event_logs.append({
+                    "step": curr_step,
+                    "action": "candidate_appended",
+                    "reason": "high_confidence_window",
+                    "buffer_size_after": len(self.candidate_buffer),
+                    "trigger_score": float(d_comb),
+                    "is_genuine_groundtruth": is_genuine_groundtruth,
+                })
+            else:
+                self.buffer_event_logs.append({
+                    "step": curr_step,
+                    "action": "candidate_rejected",
+                    "reason": reason,
+                    "buffer_size_after": len(self.candidate_buffer),
+                    "trigger_score": float(d_comb),
+                    "is_genuine_groundtruth": is_genuine_groundtruth,
+                })
 
             if appended and self.candidate_buffer.is_ready():
                 # Candidate buffer is full: perform cluster consistency and anchor verification
@@ -339,17 +454,25 @@ class DualGallery:
                     norm_mode=self.norm_mode,
                 )
 
-                # Corrected check: enforce MAXIMUM pairwise DTW distance (strict diameter check)
                 if max_pair_d > gamma_cluster_consistency * threshold:
                     # Inconsistent cluster: flush buffer
                     self.candidate_buffer.clear()
                     event_metadata = {
                         "event_type": "cluster_inconsistent_discarded",
-                        "cluster_mean_dtw": mean_pair_d,
-                        "cluster_max_dtw": max_pair_d,
-                        "trigger_score": d_comb,
+                        "cluster_mean_dtw": float(mean_pair_d),
+                        "cluster_max_dtw": float(max_pair_d),
+                        "trigger_score": float(d_comb),
                         "trigger_is_genuine": is_genuine_groundtruth,
+                        "step": curr_step,
                     }
+                    self.buffer_event_logs.append({
+                        "step": curr_step,
+                        "action": "cluster_inconsistent_discarded",
+                        "reason": f"Cluster max pairwise DTW {max_pair_d:.4f} > limit {gamma_cluster_consistency*threshold:.4f}",
+                        "buffer_size_after": 0,
+                        "trigger_score": float(d_comb),
+                        "is_genuine_groundtruth": is_genuine_groundtruth,
+                    })
                 else:
                     # Consistent cluster: compute medoid
                     m_idx, medoid_w, medoid_is_gen, avg_cluster_d = cluster.compute_medoid(
@@ -365,7 +488,7 @@ class DualGallery:
                             window_radius=self.dtw_radius,
                             norm_mode=self.norm_mode,
                         )
-                        for pt in self.permanent_templates
+                        for pt in self._permanent_templates
                     ])
                     top2_anchor_mean = float((anchor_dists[0] + anchor_dists[1]) / 2.0)
 
@@ -374,23 +497,34 @@ class DualGallery:
                         self.candidate_buffer.clear()
                         event_metadata = {
                             "event_type": "medoid_anchor_guard_rejected",
-                            "cluster_mean_dtw": mean_pair_d,
-                            "cluster_max_dtw": max_pair_d,
-                            "medoid_anchor_dist": top2_anchor_mean,
-                            "trigger_score": d_comb,
+                            "cluster_mean_dtw": float(mean_pair_d),
+                            "cluster_max_dtw": float(max_pair_d),
+                            "medoid_anchor_dist": float(top2_anchor_mean),
+                            "trigger_score": float(d_comb),
                             "trigger_is_genuine": is_genuine_groundtruth,
+                            "step": curr_step,
                         }
+                        self.buffer_event_logs.append({
+                            "step": curr_step,
+                            "action": "medoid_anchor_guard_rejected",
+                            "reason": f"Top-2 anchor distance {top2_anchor_mean:.4f} > limit {beta_anchor_guard*threshold:.4f}",
+                            "buffer_size_after": 0,
+                            "trigger_score": float(d_comb),
+                            "is_genuine_groundtruth": is_genuine_groundtruth,
+                        })
                     else:
                         # Cluster verified! Promote medoid to adaptive gallery
                         was_promoted = True
-                        if len(self.adaptive_templates) < self.max_adaptive_capacity:
-                            self.adaptive_templates.append(np.copy(medoid_w.data))
+                        is_poisoned = not bool(medoid_is_gen)
+                        repl_idx = None
+                        if len(self._adaptive_templates) < self.max_adaptive_capacity:
+                            self._adaptive_templates.append(np.copy(medoid_w.data))
                         else:
                             if self.replacement_strategy == "fifo":
-                                self.adaptive_templates.pop(0)
-                                self.adaptive_templates.append(np.copy(medoid_w.data))
+                                self._adaptive_templates.pop(0)
+                                self._adaptive_templates.append(np.copy(medoid_w.data))
+                                repl_idx = 0
                             else:
-                                # Redundancy replacement: replace adaptive template closest to candidate medoid
                                 dists_to_medoid = [
                                     multivariate_dtw_distance(
                                         medoid_w.data,
@@ -398,10 +532,10 @@ class DualGallery:
                                         window_radius=self.dtw_radius,
                                         norm_mode=self.norm_mode,
                                     )
-                                    for at in self.adaptive_templates
+                                    for at in self._adaptive_templates
                                 ]
                                 repl_idx = int(np.argmin(dists_to_medoid))
-                                self.adaptive_templates[repl_idx] = np.copy(medoid_w.data)
+                                self._adaptive_templates[repl_idx] = np.copy(medoid_w.data)
 
                         self.candidate_buffer.clear()
                         current_drift = self.compute_current_drift()
@@ -409,17 +543,133 @@ class DualGallery:
 
                         event_metadata = {
                             "event_type": "candidate_cluster_promoted",
-                            "cluster_mean_dtw": mean_pair_d,
-                            "cluster_max_dtw": max_pair_d,
-                            "medoid_anchor_dist": top2_anchor_mean,
-                            "medoid_is_genuine": medoid_is_gen,
-                            "is_poisoned": bool(not medoid_is_gen),
-                            "drift_after": current_drift,
+                            "cluster_mean_dtw": float(mean_pair_d),
+                            "cluster_max_dtw": float(max_pair_d),
+                            "medoid_anchor_dist": float(top2_anchor_mean),
+                            "medoid_is_genuine": bool(medoid_is_gen),
+                            "is_poisoned": is_poisoned,
+                            "drift_after": float(current_drift),
+                            "replaced_index": repl_idx,
+                            "step": curr_step,
                         }
+                        self.gallery_update_logs.append({
+                            "step": curr_step,
+                            "event_type": "candidate_cluster_promoted",
+                            "promoted_window_id": getattr(medoid_w, "window_id", f"win_p{medoid_w.participant_id}_{curr_step}"),
+                            "is_genuine": bool(medoid_is_gen),
+                            "is_poisoned": is_poisoned,
+                            "replaced_template_index": repl_idx,
+                            "cluster_size": len(cluster.candidates),
+                            "cluster_mean_dtw": float(mean_pair_d),
+                            "cluster_max_dtw": float(max_pair_d),
+                            "anchor_distance": float(top2_anchor_mean),
+                            "drift_after": float(current_drift),
+                        })
+                        self.buffer_event_logs.append({
+                            "step": curr_step,
+                            "action": "candidate_cluster_promoted",
+                            "reason": "Verified consistent cluster and anchor guard satisfied. Medoid promoted.",
+                            "buffer_size_after": 0,
+                            "trigger_score": float(d_comb),
+                            "is_genuine_groundtruth": is_genuine_groundtruth,
+                        })
 
         # Track drift history
         self.drift_history.append(self.compute_current_drift())
         return is_accepted, d_comb, d_perm, d_adapt, was_promoted, event_metadata
+
+    def get_audit_summary(self) -> dict:
+        """Return consolidated audit metrics."""
+        return {
+            "participant_id": self.participant_id,
+            "total_auth_attempts": len(self.auth_decision_logs),
+            "accepted_attempts": sum(1 for l in self.auth_decision_logs if l["accepted"]),
+            "rejected_attempts": sum(1 for l in self.auth_decision_logs if not l["accepted"]),
+            "buffer_events_count": len(self.buffer_event_logs),
+            "total_promotions": len(self.gallery_update_logs),
+            "genuine_promotions": sum(1 for l in self.gallery_update_logs if not l["is_poisoned"]),
+            "poisoned_promotions": sum(1 for l in self.gallery_update_logs if l["is_poisoned"]),
+            "active_adaptive_templates": len(self._adaptive_templates),
+            "current_drift": self.compute_current_drift(),
+        }
+
+
+class AdaptiveAuthenticationPipeline:
+    """
+    End-to-end stateful adaptive authentication pipeline.
+    Maintains permanent reference enrollment, candidate quarantine buffer, and
+    adaptive gallery across a continuous chronological stream of gait windows.
+    """
+    def __init__(
+        self,
+        gallery: DualGallery,
+        threshold: float,
+        alpha_high_confidence: float = 0.70,
+        beta_anchor_guard: float = 1.00,
+        gamma_cluster_consistency: float = 0.85,
+    ):
+        self.gallery = gallery
+        self.threshold = float(threshold)
+        self.alpha = float(alpha_high_confidence)
+        self.beta = float(beta_anchor_guard)
+        self.gamma = float(gamma_cluster_consistency)
+        self.step = 0
+
+    def authenticate_window(
+        self,
+        window: GaitWindow,
+        claimant_id: Optional[int] = None,
+        is_genuine_groundtruth: bool = True,
+    ) -> dict:
+        """Process a single incoming window and update state."""
+        self.step += 1
+        accepted, d_comb, d_perm, d_adapt, promoted, meta = self.gallery.evaluate_and_update(
+            window=window,
+            threshold=self.threshold,
+            alpha_high_confidence=self.alpha,
+            beta_anchor_guard=self.beta,
+            gamma_cluster_consistency=self.gamma,
+            is_genuine_groundtruth=is_genuine_groundtruth,
+            step=self.step,
+            claimant_id=claimant_id,
+        )
+        return {
+            "step": self.step,
+            "window_id": getattr(window, "window_id", f"win_{self.gallery.participant_id}_{self.step}"),
+            "accepted": accepted,
+            "score_comb": d_comb,
+            "score_perm": d_perm,
+            "score_adapt": d_adapt,
+            "promoted": promoted,
+            "is_genuine": is_genuine_groundtruth,
+            "drift": self.gallery.compute_current_drift(),
+            "event_metadata": meta,
+        }
+
+    def authenticate_stream(
+        self,
+        stream: list[tuple[GaitWindow, int, bool]]
+    ) -> list[dict]:
+        """Process a chronological sequence of (window, claimant_id, is_genuine) attempts."""
+        results = []
+        for w, claimant, is_gen in stream:
+            res = self.authenticate_window(
+                window=w,
+                claimant_id=claimant,
+                is_genuine_groundtruth=is_gen
+            )
+            results.append(res)
+        return results
+
+    def get_summary(self) -> dict:
+        return self.gallery.get_audit_summary()
+
+    def reset_adaptive_state(self):
+        """Resets adaptive gallery and buffer, keeping permanent templates untouched."""
+        self.gallery._adaptive_templates = []
+        self.gallery.candidate_buffer.clear()
+        self.gallery.drift_history = [0.0]
+        self.step = 0
 
 
 def run_dual_gallery_stream_evaluation(

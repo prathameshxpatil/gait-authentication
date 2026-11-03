@@ -31,6 +31,11 @@ import numpy as np
 # 1. File Discovery
 # ---------------------------------------------------------------------------
 
+def get_project_root() -> str:
+    """Return the absolute path to the project root directory."""
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def get_raw_data_dir(project_root: str = None) -> str:
     """
     Return the absolute path to the raw data directory.
@@ -47,9 +52,54 @@ def get_raw_data_dir(project_root: str = None) -> str:
         Absolute path to data/raw/.
     """
     if project_root is None:
-        # This file is at <project_root>/src/data_loader.py
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        project_root = get_project_root()
     return os.path.join(project_root, "data", "raw")
+
+
+def get_manifest_path(project_root: str = None) -> str:
+    """
+    Return the absolute path to the dataset manifest CSV file.
+
+    Parameters
+    ----------
+    project_root : str, optional
+        Root of the project.
+
+    Returns
+    -------
+    str
+        Absolute path to data/dataset_manifest.csv.
+    """
+    if project_root is None:
+        project_root = get_project_root()
+    return os.path.join(project_root, "data", "dataset_manifest.csv")
+
+
+def load_manifest(manifest_path: str = None) -> pd.DataFrame:
+    """
+    Load the dataset manifest into a Pandas DataFrame.
+
+    Parameters
+    ----------
+    manifest_path : str, optional
+        Path to dataset_manifest.csv. Uses default location if None.
+
+    Returns
+    -------
+    pd.DataFrame
+        Dataset manifest containing recording IDs, canonical IDs, metadata,
+        and paths to raw files.
+    """
+    if manifest_path is None:
+        manifest_path = get_manifest_path()
+
+    if not os.path.exists(manifest_path):
+        raise FileNotFoundError(
+            f"Dataset manifest not found at: {manifest_path}. "
+            "Please ensure data/dataset_manifest.csv exists."
+        )
+
+    return pd.read_csv(manifest_path)
 
 
 def discover_csv_files(raw_dir: str = None) -> list[str]:
@@ -96,9 +146,11 @@ def parse_filename(filepath: str) -> dict:
     """
     Extract metadata from a recording filename.
 
-    Expected naming convention (with optional quirks):
-        ' sub<ID>-rp-s<SESSION>.csv'      (normal)
-        ' sub<ID>-rp-s<SESSION>.csv.csv'   (double extension)
+    Expected naming conventions:
+        ' sub<ID>-rp-s<SESSION>.csv'        (Right Pocket)
+        ' sub<ID>-lw-s<SESSION>.csv'        (Left Wrist)
+        ' sub<ID>-<placement>-s<SESSION>.csv.csv' (Double extension)
+        ' sub<ID>-<placement>-s<SESSION>-b<BOUT>.csv' (With optional bout)
 
     Parameters
     ----------
@@ -108,45 +160,65 @@ def parse_filename(filepath: str) -> dict:
     Returns
     -------
     dict
-        Keys: 'participant_id' (int), 'session' (int), 'filename' (str),
-              'filepath' (str).
-        Returns None values for participant_id / session if parsing fails.
+        Keys: 'participant_id' (int), 'placement' (str: 'RP' or 'LW'),
+              'session' (int), 'bout' (int), 'filename' (str), 'filepath' (str).
+        Returns None values for participant_id / placement / session if parsing fails.
     """
     filename = os.path.basename(filepath).strip()  # strip leading spaces
 
-    # Try to match the pattern: sub<number>-rp-s<number>
-    match = re.search(r"sub(\d+)-rp-s(\d+)", filename)
+    # Match sub<number>-(rp|lw)-s<number> with optional bout suffix (-b<number>)
+    match = re.search(r"sub(\d+)-(rp|lw)-s(\d+)(?:-b(\d+))?", filename, re.IGNORECASE)
 
     if match:
         participant_id = int(match.group(1))
-        session = int(match.group(2))
+        placement = match.group(2).upper()
+        session = int(match.group(3))
+        bout = int(match.group(4)) if match.group(4) else 1
     else:
         participant_id = None
+        placement = None
         session = None
+        bout = None
 
     return {
         "participant_id": participant_id,
+        "placement": placement,
         "session": session,
+        "bout": bout,
         "filename": filename,
         "filepath": filepath,
     }
 
 
-def get_file_inventory(raw_dir: str = None) -> pd.DataFrame:
+def get_file_inventory(raw_dir: str = None,
+                       manifest_path: str = None,
+                       use_manifest: bool = True) -> pd.DataFrame:
     """
     Build a summary table of every CSV file with parsed metadata and file size.
+    Prefers the authoritative manifest if available.
 
     Parameters
     ----------
     raw_dir : str, optional
-        Path to the raw data folder.
+        Path to the raw data folder (used if use_manifest=False).
+    manifest_path : str, optional
+        Explicit path to dataset_manifest.csv.
+    use_manifest : bool, optional
+        If True (default) and manifest exists, loads metadata from manifest.
 
     Returns
     -------
     pd.DataFrame
-        One row per file with columns:
-        [filename, filepath, participant_id, session, file_size_bytes].
+        One row per file with metadata columns.
     """
+    if use_manifest:
+        try:
+            mpath = manifest_path or get_manifest_path()
+            if os.path.exists(mpath):
+                return pd.read_csv(mpath)
+        except Exception:
+            pass  # Fall back to raw directory scan
+
     csv_files = discover_csv_files(raw_dir)
     rows = []
     for fp in csv_files:
@@ -156,9 +228,9 @@ def get_file_inventory(raw_dir: str = None) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
 
-    # Sort by participant then session for readability
+    # Sort by participant then placement then session for readability
     if not df.empty and df["participant_id"].notna().all():
-        df = df.sort_values(["participant_id", "session"]).reset_index(drop=True)
+        df = df.sort_values(["participant_id", "placement", "session"]).reset_index(drop=True)
 
     return df
 
@@ -197,32 +269,195 @@ def load_single_recording(filepath: str) -> pd.DataFrame:
     return df
 
 
-def load_all_recordings(raw_dir: str = None) -> dict[str, pd.DataFrame]:
+def load_all_recordings(raw_dir: str = None,
+                        placement: str = None,
+                        manifest_path: str = None,
+                        use_manifest: bool = True) -> dict[str, pd.DataFrame]:
     """
-    Load every CSV file into a dictionary of DataFrames.
+    Load CSV files into a dictionary of DataFrames.
 
     Parameters
     ----------
     raw_dir : str, optional
-        Path to the raw data folder.
+        Path to the raw data folder. Used when use_manifest=False or manifest missing.
+    placement : str, optional
+        Filter recordings by placement: 'RP' (Right Pocket), 'LW' (Left Wrist),
+        or None (load all placements).
+    manifest_path : str, optional
+        Path to dataset_manifest.csv. Uses data/dataset_manifest.csv by default.
+    use_manifest : bool, optional
+        If True (default), loads files via the manifest which ensures deterministic
+        disambiguation of collision files and unique canonical keys.
 
     Returns
     -------
     dict[str, pd.DataFrame]
-        Keys are cleaned filenames (e.g. 'sub1-rp-s1'), values are DataFrames.
+        Keys are canonical IDs (e.g. 'sub1-rp-s1', 'sub1-lw-s1', 'sub19-lw-s2-b1'),
+        values are DataFrames with metadata attributes attached (df.attrs).
     """
-    csv_files = discover_csv_files(raw_dir)
     recordings = {}
+    project_root = get_project_root()
+    mpath = manifest_path or get_manifest_path(project_root)
+
+    if use_manifest and os.path.exists(mpath):
+        manifest_df = pd.read_csv(mpath)
+        if placement is not None:
+            manifest_df = manifest_df[
+                manifest_df["placement"].str.upper() == placement.upper()
+            ].copy()
+
+        for _, row in manifest_df.iterrows():
+            raw_path = row["raw_path"]
+            if not os.path.isabs(raw_path):
+                filepath = os.path.join(project_root, raw_path)
+            else:
+                filepath = raw_path
+
+            df = load_single_recording(filepath)
+            df.attrs["recording_id"] = row["recording_id"]
+            df.attrs["canonical_id"] = row["canonical_id"]
+            df.attrs["participant_id"] = int(row["participant_id"])
+            df.attrs["placement"] = row["placement"]
+            df.attrs["session"] = int(row["session_int"])
+            df.attrs["bout"] = int(row["bout"])
+            df.attrs["sha256"] = row["sha256"]
+            df.attrs["raw_path"] = row["raw_path"]
+
+            key = row["canonical_id"]
+            recordings[key] = df
+
+        return recordings
+
+    # Fallback to filesystem scan
+    csv_files = discover_csv_files(raw_dir)
+    seen_keys = {}
 
     for fp in csv_files:
         info = parse_filename(fp)
-        # Create a clean key like 'sub1-rp-s1'
-        if info["participant_id"] is not None:
-            key = f"sub{info['participant_id']}-rp-s{info['session']}"
-        else:
-            key = info["filename"]
+        if placement is not None and info["placement"] is not None:
+            if info["placement"].upper() != placement.upper():
+                continue
 
-        recordings[key] = load_single_recording(fp)
+        if info["participant_id"] is not None and info["placement"] is not None:
+            base_key = f"sub{info['participant_id']}-{info['placement'].lower()}-s{info['session']}"
+        else:
+            base_key = info["filename"]
+
+        # Disambiguate if multiple files share the base_key
+        if base_key not in seen_keys:
+            seen_keys[base_key] = 1
+            key = base_key
+        else:
+            seen_keys[base_key] += 1
+            key = f"{base_key}-b{seen_keys[base_key]}"
+
+        df = load_single_recording(fp)
+        if info["participant_id"] is not None:
+            df.attrs["participant_id"] = info["participant_id"]
+            df.attrs["placement"] = info["placement"]
+            df.attrs["session"] = info["session"]
+            df.attrs["bout"] = info.get("bout", 1)
+        recordings[key] = df
+
+    return recordings
+
+
+def load_recording_by_id(rec_id: str,
+                         manifest_path: str = None) -> pd.DataFrame:
+    """
+    Load a single recording by its recording_id (e.g. 'rec_001') or
+    canonical_id (e.g. 'sub1-rp-s1', 'sub19-lw-s2-b1').
+
+    Parameters
+    ----------
+    rec_id : str
+        The unique recording_id or canonical_id.
+    manifest_path : str, optional
+        Path to manifest file.
+
+    Returns
+    -------
+    pd.DataFrame
+        Loaded recording DataFrame with metadata attached in df.attrs.
+    """
+    project_root = get_project_root()
+    mpath = manifest_path or get_manifest_path(project_root)
+    manifest_df = pd.read_csv(mpath)
+
+    match = manifest_df[
+        (manifest_df["recording_id"] == rec_id) |
+        (manifest_df["canonical_id"] == rec_id)
+    ]
+    if match.empty:
+        raise KeyError(f"Recording ID '{rec_id}' not found in dataset manifest.")
+
+    row = match.iloc[0]
+    raw_path = row["raw_path"]
+    if not os.path.isabs(raw_path):
+        filepath = os.path.join(project_root, raw_path)
+    else:
+        filepath = raw_path
+
+    df = load_single_recording(filepath)
+    df.attrs["recording_id"] = row["recording_id"]
+    df.attrs["canonical_id"] = row["canonical_id"]
+    df.attrs["participant_id"] = int(row["participant_id"])
+    df.attrs["placement"] = row["placement"]
+    df.attrs["session"] = int(row["session_int"])
+    df.attrs["bout"] = int(row["bout"])
+    df.attrs["sha256"] = row["sha256"]
+    df.attrs["raw_path"] = row["raw_path"]
+
+    return df
+
+
+def get_participant_recordings(participant_id: int,
+                               placement: str = None,
+                               manifest_path: str = None) -> dict[str, pd.DataFrame]:
+    """
+    Retrieve all recordings for a specific participant.
+
+    Parameters
+    ----------
+    participant_id : int
+        Participant ID (1..93).
+    placement : str, optional
+        Filter by placement ('RP' or 'LW'), or None for all.
+    manifest_path : str, optional
+        Path to manifest file.
+
+    Returns
+    -------
+    dict[str, pd.DataFrame]
+        Mapping from canonical_id to DataFrame.
+    """
+    project_root = get_project_root()
+    mpath = manifest_path or get_manifest_path(project_root)
+    manifest_df = pd.read_csv(mpath)
+
+    subset = manifest_df[manifest_df["participant_id"] == participant_id]
+    if placement is not None:
+        subset = subset[subset["placement"].str.upper() == placement.upper()]
+
+    recordings = {}
+    for _, row in subset.iterrows():
+        raw_path = row["raw_path"]
+        if not os.path.isabs(raw_path):
+            filepath = os.path.join(project_root, raw_path)
+        else:
+            filepath = raw_path
+
+        df = load_single_recording(filepath)
+        df.attrs["recording_id"] = row["recording_id"]
+        df.attrs["canonical_id"] = row["canonical_id"]
+        df.attrs["participant_id"] = int(row["participant_id"])
+        df.attrs["placement"] = row["placement"]
+        df.attrs["session"] = int(row["session_int"])
+        df.attrs["bout"] = int(row["bout"])
+        df.attrs["sha256"] = row["sha256"]
+        df.attrs["raw_path"] = row["raw_path"]
+
+        recordings[row["canonical_id"]] = df
 
     return recordings
 
